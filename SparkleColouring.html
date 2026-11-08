@@ -65,6 +65,11 @@ button:focus-visible{outline:4px solid var(--berry);outline-offset:3px}
 #stage{position:relative;background:#fff;border:4px solid var(--ink);border-radius:22px;box-shadow:0 6px 0 var(--ink);overflow:hidden;touch-action:none;width:300px;height:300px}
 #stage canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 #cursor{position:absolute;left:0;top:0;border-radius:50%;border:2px solid var(--ink);pointer-events:none;transform:translate(-50%,-50%)}
+.zoomctl{position:absolute;right:10px;bottom:10px;display:flex;gap:8px;z-index:2}
+.zbtn{width:54px;height:54px;border-radius:50%;border:3px solid var(--ink);background:var(--card);box-shadow:0 3px 0 var(--ink);display:grid;place-items:center;padding:0}
+.zbtn svg{width:28px;height:28px}
+.zbtn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
+.zbtn:disabled{opacity:.35;box-shadow:none}
 #loading{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--display);font-size:1.4rem;background:#fff}
 #palette{--sw:clamp(56px,9vmin,82px);display:grid;grid-template-columns:repeat(2,var(--sw));gap:14px;align-content:center;padding:8px}
 .swatch{position:relative;width:var(--sw);height:var(--sw);border-radius:50%;border:4px solid var(--ink);background:var(--c);color:var(--t);
@@ -144,6 +149,10 @@ button:focus-visible{outline:4px solid var(--berry);outline-offset:3px}
         <canvas id="nums"></canvas>
         <canvas id="fx"></canvas>
         <div id="cursor" hidden></div>
+        <div class="zoomctl">
+          <button class="zbtn" id="zoomOut" aria-label="Zoom out" disabled><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"><circle cx="14" cy="14" r="9"/><path d="M10 14h8M21 21l6 6"/></svg></button>
+          <button class="zbtn" id="zoomIn" aria-label="Zoom in"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"><circle cx="14" cy="14" r="9"/><path d="M10 14h8M14 10v8M21 21l6 6"/></svg></button>
+        </div>
         <div id="loading" hidden>Mixing the paints…</div>
       </div>
     </div>
@@ -640,28 +649,60 @@ function analyse(pic) {
 }
 
 /* ---------- drawing the line art ---------- */
-function drawLines(ctx, pic, px) {
-  const s = px / U;
+function drawLines(ctx, pic, px, v) {
+  const z = v ? v.z : 1, s = px / U * z, thin = Math.pow(z, -.4);
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-  ctx.setTransform(s, 0, 0, s, 0, 0);
+  ctx.setTransform(s, 0, 0, s, v ? v.tx : 0, v ? v.ty : 0);
   ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.strokeStyle = INK; ctx.fillStyle = INK;
   pic.items.forEach((it, i) => {
-    if (it.kind === 'line') { ctx.lineWidth = it.w; ctx.stroke(it.path); return; }
+    if (it.kind === 'line') { ctx.lineWidth = it.w * thin; ctx.stroke(it.path); return; }
     if (i === 0) return;
     ctx.globalCompositeOperation = 'destination-out'; ctx.fill(it.path, it.rule || 'nonzero');
     ctx.globalCompositeOperation = 'source-over';
     if (it.kind === 'ink') ctx.fill(it.path);
-    ctx.lineWidth = 7; ctx.stroke(it.path);
+    ctx.lineWidth = 7 * thin; ctx.stroke(it.path);
   });
 }
 
 /* ---------- state ---------- */
 const $ = id => document.getElementById(id);
-const stage = $('stage'), paint = $('paint'), pctx = paint.getContext('2d');
+const stage = $('stage'), paint = $('paint'), dctx = paint.getContext('2d');
+const buf = document.createElement('canvas'); buf.width = buf.height = U;
+const pctx = buf.getContext('2d');
 const lines = $('lines'), lctx = lines.getContext('2d');
 const nums = $('nums'), nctx = nums.getContext('2d');
 const fxc = $('fx'), fctx = fxc.getContext('2d');
 const cursor = $('cursor');
+/* zoom: z = magnification, tx/ty = offset in device pixels of the display canvases */
+const view = { z: 1, tx: 0, ty: 0 };
+const ZMAX = 5;
+function vk() { return paint.width / U * view.z; }
+function setView(ctx) { const k = vk(); ctx.setTransform(k, 0, 0, k, view.tx, view.ty); }
+function renderPaint() {
+  dctx.setTransform(1, 0, 0, 1, 0, 0); dctx.fillStyle = '#fff'; dctx.fillRect(0, 0, paint.width, paint.height);
+  setView(dctx); dctx.imageSmoothingEnabled = true; dctx.imageSmoothingQuality = 'high'; dctx.drawImage(buf, 0, 0);
+}
+function renderLines() { if (st.pic) drawLines(lctx, st.pic, lines.width, view); }
+let viewRaf = 0;
+function renderAll() { viewRaf = 0; renderPaint(); renderLines(); drawNums(); }
+function clampView() {
+  view.z = Math.max(1, Math.min(ZMAX, view.z));
+  const W = paint.width, span = W * view.z;
+  view.tx = Math.min(0, Math.max(W - span, view.tx));
+  view.ty = Math.min(0, Math.max(W - span, view.ty));
+}
+function zoomAt(px, py, z) {
+  const k0 = vk(), ux = (px - view.tx) / k0, uy = (py - view.ty) / k0;
+  view.z = Math.max(1, Math.min(ZMAX, z));
+  const k1 = vk(); view.tx = px - ux * k1; view.ty = py - uy * k1;
+  clampView(); viewChanged();
+}
+function viewChanged() {
+  const zo = document.getElementById('zoomOut'); if (zo) zo.disabled = view.z <= 1.001;
+  const zi = document.getElementById('zoomIn'); if (zi) zi.disabled = view.z >= ZMAX - .001;
+  if (!viewRaf) viewRaf = requestAnimationFrame(renderAll);
+}
+function resetView() { view.z = 1; view.tx = 0; view.ty = 0; viewChanged(); }
 const st = { pic: null, an: null, sel: 1, tool: 'crayon', size: 'big', sound: true, done: null, painted: null, cov: null, S: 300, dpr: 1 };
 try { const pref = JSON.parse(localStorage.getItem(KEY + 'prefs') || '{}'); if (pref.size) st.size = pref.size; if (pref.sound === false) st.sound = false; } catch (e) {}
 function savePrefs() { try { localStorage.setItem(KEY + 'prefs', JSON.stringify({ size: st.size, sound: st.sound })); } catch (e) {} }
@@ -717,21 +758,24 @@ function layout() {
   st.S = S; st.dpr = Math.min(window.devicePixelRatio || 1, 3);
   stage.style.width = S + 'px'; stage.style.height = S + 'px';
   const px = Math.round((S - 8) * st.dpr);
-  for (const c of [lines, nums, fxc]) { c.width = px; c.height = px; }
-  if (st.pic) { drawLines(lctx, st.pic, px); drawNums(); }
+  const old = paint.width;
+  for (const c of [paint, lines, nums, fxc]) { c.width = px; c.height = px; }
+  if (old && old !== px) { view.tx *= px / old; view.ty *= px / old; }
+  clampView();
+  if (st.pic) renderAll();
 }
 new ResizeObserver(() => { if (!$('studio').hidden) layout(); }).observe($('stageWrap'));
 
 /* ---------- numbers ---------- */
 function drawNums() {
   const an = st.an; if (!an) return;
-  const s = nums.width / U;
   nctx.setTransform(1, 0, 0, 1, 0, 0); nctx.clearRect(0, 0, nums.width, nums.height);
-  nctx.setTransform(s, 0, 0, s, 0, 0);
+  setView(nctx);
+  const z = view.z;
   nctx.textAlign = 'center'; nctx.textBaseline = 'middle';
   an.comps.forEach((c, k) => {
     if (st.done[k]) return;
-    const fs = Math.max(19, Math.min(50, c.lr * .95));
+    const fs = Math.max(19, Math.min(50, c.lr * .95 * z)) / z;
     nctx.font = `700 ${fs}px Andika, 'Trebuchet MS', sans-serif`;
     nctx.fillStyle = c.n === st.sel ? INK : 'rgba(58,46,79,.55)';
     nctx.fillText(c.n, c.lx, c.ly + fs * .04);
@@ -774,8 +818,7 @@ function firstLeft(from = 1) {
 const effects = []; let fxRaf = 0;
 function fxAdd(o) { o.t0 = performance.now(); effects.push(o); if (!fxRaf) fxRaf = requestAnimationFrame(fxTick); }
 function fxTick(t) {
-  const s = fxc.width / U;
-  fctx.setTransform(1, 0, 0, 1, 0, 0); fctx.clearRect(0, 0, fxc.width, fxc.height); fctx.setTransform(s, 0, 0, s, 0, 0);
+  fctx.setTransform(1, 0, 0, 1, 0, 0); fctx.clearRect(0, 0, fxc.width, fxc.height); setView(fctx);
   for (let i = effects.length - 1; i >= 0; i--) {
     const e = effects[i], p = (t - e.t0) / e.dur;
     if (p >= 1) { effects.splice(i, 1); continue; }
@@ -821,7 +864,8 @@ function wiggle(n) {
 }
 
 /* ---------- painting ---------- */
-function pt(e) { const r = paint.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * U, y: (e.clientY - r.top) / r.height * U }; }
+function devPx(e) { const r = paint.getBoundingClientRect(); return { x: (e.clientX - r.left) * paint.width / r.width, y: (e.clientY - r.top) * paint.height / r.height }; }
+function pt(e) { const d = devPx(e), k = vk(); return { x: (d.x - view.tx) / k, y: (d.y - view.ty) / k }; }
 function compAt(x, y) {
   const mx = Math.floor(x / MK), my = Math.floor(y / MK);
   if (mx < 0 || my < 0 || mx >= MS || my >= MS) return -1;
@@ -850,6 +894,7 @@ function flush() {
   for (const [a, b] of pending) capsule(path, a, b);
   pending = [];
   pctx.save(); pctx.clip(path); pctx.drawImage(t.cv, t.x, t.y, t.w, t.h); pctx.restore();
+  renderPaint();
 }
 function need(c) { if (!c.cells) return 0; return Math.ceil(c.cells * (c.cells < 90 ? .85 : .9)); }
 function addSeg(a, b) {
@@ -874,7 +919,7 @@ function complete(k, quiet) {
   const c = st.an.comps[k], t = tint(k);
   pctx.drawImage(t.cv, t.x, t.y, t.w, t.h);
   if (quiet) return;
-  drawNums(); burst(c.lx, c.ly, st.pic.colors[c.n - 1]); sfx.pop();
+  renderPaint(); drawNums(); burst(c.lx, c.ly, st.pic.colors[c.n - 1]); sfx.pop();
   updateSwatches(); save(true);
   if (st.done.every(Boolean)) { setTimeout(celebrate, 650); return; }
   if (!left(c.n)) { sfx.chime(); setTimeout(() => select(firstLeft(c.n)), 450); }
@@ -891,8 +936,34 @@ function showWhere() {
   if (ks.length) { fxAdd({ type: 'flash', ks, pulses: 3, dur: 1600 }); wiggle(st.sel); }
 }
 
+/* two fingers zoom and move the picture */
+const touches = new Map(); let pinch = null;
+function pinchState() {
+  const [a, b] = [...touches.values()];
+  return { mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, d: Math.max(20, Math.hypot(a.x - b.x, a.y - b.y)) };
+}
+function startPinch() {
+  const p = pinchState(), k = vk();
+  pinch = { d0: p.d, z0: view.z, ux: (p.mx - view.tx) / k, uy: (p.my - view.ty) / k };
+}
+function movePinch() {
+  const p = pinchState();
+  view.z = Math.max(1, Math.min(ZMAX, pinch.z0 * p.d / pinch.d0));
+  const k = vk(); view.tx = p.mx - pinch.ux * k; view.ty = p.my - pinch.uy * k;
+  clampView(); viewChanged();
+}
 stage.addEventListener('pointerdown', e => {
   if (!st.an) return;
+  if (e.pointerType === 'touch') {
+    if (stroke && stroke.pen) return;            // palm resting while the Pencil draws
+    touches.set(e.pointerId, devPx(e));
+    try { stage.setPointerCapture(e.pointerId); } catch (_) {}
+    if (touches.size === 2) {
+      if (stroke) { flush(); stroke = null; save(); }
+      startPinch(); e.preventDefault(); return;
+    }
+    if (touches.size > 2) return;
+  }
   const now = performance.now();
   if (e.pointerType === 'pen') lastPen = now;
   else if (e.pointerType === 'touch' && now - lastPen < 1500) return;
@@ -905,13 +976,17 @@ stage.addEventListener('pointerdown', e => {
   if (st.tool === 'wand') { complete(k); return; }
   try { stage.setPointerCapture(e.pointerId); } catch (_) {}
   const a = { x: p.x, y: p.y, r: radius(e) };
-  stroke = { id: e.pointerId, k, last: a };
+  stroke = { id: e.pointerId, k, last: a, pen: e.pointerType === 'pen' };
   addSeg(a, a);
 });
 stage.addEventListener('pointermove', e => {
   if (e.pointerType === 'pen') lastPen = performance.now();
+  if (touches.has(e.pointerId)) {
+    touches.set(e.pointerId, devPx(e));
+    if (pinch && touches.size === 2) { movePinch(); return; }
+  }
   if (e.pointerType !== 'touch') {
-    const r = stage.getBoundingClientRect(), d = SIZES[st.size] * (st.S - 8) / U;
+    const r = stage.getBoundingClientRect(), d = SIZES[st.size] * view.z * (st.S - 8) / U;
     cursor.hidden = st.tool !== 'crayon';
     cursor.style.left = (e.clientX - r.left - 4) + 'px'; cursor.style.top = (e.clientY - r.top - 4) + 'px';
     cursor.style.width = d + 'px'; cursor.style.height = d + 'px';
@@ -925,6 +1000,7 @@ stage.addEventListener('pointermove', e => {
   }
 });
 function endStroke(e) {
+  if (touches.delete(e.pointerId)) { if (touches.size < 2) pinch = null; }
   if (!stroke || e.pointerId !== stroke.id) return;
   flush(); stroke = null; save();
 }
@@ -932,6 +1008,21 @@ stage.addEventListener('pointerup', endStroke);
 stage.addEventListener('pointercancel', endStroke);
 stage.addEventListener('pointerleave', e => { if (e.pointerType !== 'touch') cursor.hidden = true; });
 stage.addEventListener('contextmenu', e => e.preventDefault());
+stage.addEventListener('wheel', e => {
+  if (!st.an) return;
+  e.preventDefault();
+  const d = devPx(e); zoomAt(d.x, d.y, view.z * Math.exp(-e.deltaY * .002));
+}, { passive: false });
+document.addEventListener('gesturestart', e => e.preventDefault());
+for (const id of ['zoomIn', 'zoomOut']) {
+  const b = document.getElementById(id);
+  b.addEventListener('pointerdown', e => e.stopPropagation());
+  b.addEventListener('click', () => {
+    audioInit(); sfx.tick();
+    const c = paint.width / 2;
+    zoomAt(c, c, id === 'zoomIn' ? view.z * 1.6 : (view.z / 1.6 < 1.15 ? 1 : view.z / 1.6));
+  });
+}
 
 /* ---------- saving ---------- */
 let saveT = 0;
@@ -940,7 +1031,7 @@ function save(now) {
   const go = () => {
     if (!st.pic) return;
     const done = []; st.done.forEach((v, k) => v && done.push(k));
-    try { localStorage.setItem(KEY + st.pic.id, JSON.stringify({ img: paint.toDataURL('image/jpeg', .85), done, total: st.done.length })); } catch (e) {}
+    try { localStorage.setItem(KEY + st.pic.id, JSON.stringify({ img: buf.toDataURL('image/jpeg', .85), done, total: st.done.length })); } catch (e) {}
   };
   saveT = setTimeout(go, now ? 50 : 500);
 }
@@ -952,7 +1043,8 @@ async function openPicture(id) {
   $('gallery').hidden = true; $('studio').hidden = false;
   $('ptitle').textContent = pic.name;
   $('loading').hidden = false;
-  st.pic = pic; st.an = null; stroke = null; pending = [];
+  st.pic = pic; st.an = null; stroke = null; pending = []; touches.clear(); pinch = null;
+  view.z = 1; view.tx = 0; view.ty = 0;
   layout();
   await new Promise(r => setTimeout(r, 30));
   const an = analyse(pic);
@@ -971,7 +1063,7 @@ async function openPicture(id) {
   try { await document.fonts.load('700 40px Andika'); } catch (e) {}
   st.sel = firstLeft(1);
   buildPalette();
-  drawLines(lctx, pic, lines.width); drawNums();
+  resetView(); renderAll();
   $('loading').hidden = true;
   try { if (navigator.wakeLock) st.lock = await navigator.wakeLock.request('screen'); } catch (e) {}
 }
@@ -991,7 +1083,7 @@ function restart() {
   try { localStorage.removeItem(KEY + st.pic.id); } catch (e) {}
   st.done.fill(0); st.cov.fill(0); st.painted.fill(0);
   pctx.fillStyle = '#fff'; pctx.fillRect(0, 0, U, U);
-  st.sel = 1; updateSwatches(); drawNums();
+  st.sel = 1; updateSwatches(); resetView(); renderAll();
 }
 
 /* ---------- gallery ---------- */
@@ -1043,7 +1135,7 @@ document.addEventListener('visibilitychange', async () => {
 });
 
 /* ---------- pick up new versions (GitHub Pages copy) ---------- */
-const APP_VERSION = '2026-11-08.4';
+const APP_VERSION = '2026-11-08.5';
 let pendingVersion = null;
 function goNewVersion(v) { save(true); setTimeout(() => location.replace(location.pathname + '?v=' + encodeURIComponent(v)), 120); }
 async function checkVersion() {
