@@ -733,16 +733,8 @@ function drawNums() {
     if (st.done[k]) return;
     const fs = Math.max(19, Math.min(50, c.lr * .95));
     nctx.font = `700 ${fs}px Andika, 'Trebuchet MS', sans-serif`;
-    if (c.n === st.sel) {
-      const rr = fs * .72;
-      nctx.beginPath(); nctx.arc(c.lx, c.ly, rr, 0, Math.PI * 2);
-      nctx.fillStyle = '#fff'; nctx.fill();
-      nctx.lineWidth = Math.max(4, fs * .16); nctx.strokeStyle = st.pic.colors[c.n - 1]; nctx.stroke();
-      nctx.lineWidth = 2; nctx.strokeStyle = INK; nctx.stroke();
-      nctx.fillStyle = INK; nctx.fillText(c.n, c.lx, c.ly + fs * .04);
-    } else {
-      nctx.fillStyle = 'rgba(58,46,79,.62)'; nctx.fillText(c.n, c.lx, c.ly + fs * .04);
-    }
+    nctx.fillStyle = c.n === st.sel ? INK : 'rgba(58,46,79,.55)';
+    nctx.fillText(c.n, c.lx, c.ly + fs * .04);
   });
 }
 
