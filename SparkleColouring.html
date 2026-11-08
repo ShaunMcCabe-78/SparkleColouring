@@ -979,6 +979,7 @@ function backToGallery() {
   save(true);
   try { st.lock && st.lock.release(); } catch (e) {}
   $('studio').hidden = true; $('gallery').hidden = false; $('celebrate').hidden = true;
+  if (pendingVersion) { goNewVersion(pendingVersion); return; }
   setTimeout(buildGallery, 80);
 }
 function celebrate() {
@@ -1040,6 +1041,23 @@ setSize(st.size); setSound(st.sound); setTool('crayon');
 document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState === 'visible' && !$('studio').hidden) { try { if (navigator.wakeLock) st.lock = await navigator.wakeLock.request('screen'); } catch (e) {} }
 });
+
+/* ---------- pick up new versions (GitHub Pages copy) ---------- */
+const APP_VERSION = '2026-11-08.4';
+let pendingVersion = null;
+function goNewVersion(v) { save(true); setTimeout(() => location.replace(location.pathname + '?v=' + encodeURIComponent(v)), 120); }
+async function checkVersion() {
+  if (!/^https?:/.test(location.protocol) || !/github\.io$/.test(location.hostname)) return;
+  try {
+    const r = await fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) return;
+    const m = (await r.text()).match(/APP_VERSION = '([^']+)'/);
+    if (!m || m[1] === APP_VERSION) return;
+    if ($('studio').hidden) goNewVersion(m[1]); else pendingVersion = m[1];
+  } catch (e) {}
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkVersion(); });
+checkVersion();
 
 buildGallery();
 document.fonts && document.fonts.ready.then(() => { if (!$('studio').hidden) drawNums(); });
