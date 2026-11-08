@@ -2,7 +2,7 @@
 
 A paint-by-numbers colouring app for iPad and Apple Pencil, with 14 princess, unicorn and fairy-tale pictures.
 
-**Play it:** https://shaunmccabe-78.github.io/sparklecolouring/
+**Play it:** https://shaunmccabe-78.github.io/SparkleColouring/
 
 Open the link in Safari on the iPad, then tap Share → Add to Home Screen to use it like an app. Progress is saved on the device.
 
