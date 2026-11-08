@@ -859,7 +859,7 @@ function flush() {
   pending = [];
   pctx.save(); pctx.clip(path); pctx.drawImage(t.cv, t.x, t.y, t.w, t.h); pctx.restore();
 }
-function need(c) { if (!c.cells) return 0; return Math.ceil(c.cells * (c.cells > 6000 ? .6 : c.cells < 90 ? .5 : .7)); }
+function need(c) { if (!c.cells) return 0; return Math.ceil(c.cells * (c.cells < 90 ? .85 : .9)); }
 function addSeg(a, b) {
   pending.push([a, b]); if (!raf) raf = requestAnimationFrame(flush);
   const k = stroke.k, c = st.an.comps[k], cell = st.an.cell, pd = st.painted;
