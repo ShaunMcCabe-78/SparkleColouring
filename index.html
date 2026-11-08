@@ -49,6 +49,15 @@ button:focus-visible{outline:4px solid var(--berry);outline-offset:3px}
 .card .track{height:10px;border-radius:5px;background:#F1E9F6;border:2px solid var(--ink);overflow:hidden;margin-inline:4px}
 .card .track i{display:block;height:100%;background:var(--berry);border-radius:3px}
 .card .badge{position:absolute;top:-14px;right:-12px;width:54px;height:54px}
+.shelf{margin-top:34px}
+.shelf:first-child{margin-top:0}
+.shelf h2{margin:0 0 16px;font-family:var(--display);font-weight:800;font-size:1.8rem;line-height:1.1;text-wrap:balance}
+.cardbox{position:relative;display:flex}
+.cardbox .card{flex:1}
+.del{position:absolute;top:-14px;left:-12px;z-index:1;width:46px;height:46px;border-radius:50%;border:3px solid var(--ink);background:var(--card);box-shadow:0 3px 0 var(--ink);display:grid;place-items:center;padding:0}
+.del svg{width:22px;height:22px}
+.card.add .plus{display:grid;place-items:center;width:100%;aspect-ratio:1;max-width:100%;border:4px dashed var(--ink-soft);border-radius:16px;background:var(--mint)}
+.card.add .plus svg{width:42%;height:42%}
 .parent{margin-top:34px;max-width:62ch;color:var(--ink-soft);font-size:.95rem;line-height:1.5}
 
 /* Studio */
@@ -107,8 +116,10 @@ button:focus-visible{outline:4px solid var(--berry);outline-offset:3px}
     <h1>Sparkle Colouring</h1>
     <p>Pick a picture, then match the numbers to the paint pots.</p>
   </header>
-  <div class="grid" id="grid"></div>
-  <p class="parent">For grown-ups: choose a colour, then colour inside any shape with the same number. The crayon stays inside the lines, so scribbles are fine. Once a shape is mostly coloured it fills in by itself. The magic wand fills a whole shape with one tap. Pictures are saved on this iPad as she goes.</p>
+  <div id="shelves"></div>
+  <input type="file" id="fileIn" accept="image/*" hidden>
+  <p class="parent">For grown-ups: choose a colour, then colour inside any shape with the same number. The crayon stays inside the lines, so scribbles are fine. Once a shape is nearly all coloured it fills in by itself. The magic wand fills a whole shape with one tap. Two fingers zoom in. Pictures are saved on this iPad as she goes.</p>
+  <p class="parent">Your own pictures: tap "Add a picture" and choose a colouring page saved in Photos or Files. Simple drawings with bold black lines and closed shapes work best. These have no numbers, so she can pick any colour for any shape.</p>
 </section>
 
 <section id="studio" hidden>
@@ -162,8 +173,8 @@ button:focus-visible{outline:4px solid var(--berry);outline-offset:3px}
 
 <div class="sheet" id="confirm" hidden>
   <div class="box">
-    <h2>Start again?</h2>
-    <p>This rubs out all the colours on this picture.</p>
+    <h2 id="confirmTitle">Start again?</h2>
+    <p id="confirmText">This rubs out all the colours on this picture.</p>
     <div class="row">
       <button class="btn" id="keep">No, keep it</button>
       <button class="btn hot" id="wipe">Yes, start again</button>
@@ -251,6 +262,15 @@ const M = d => d.replace(/([MLCQTAHVZ])([^MLCQTAHVZ]*)/g, (m, cmd, args) => {
   else if (cmd !== 'Z') o = a.map((v, i) => i % 2 === 0 ? U - v : v);
   return cmd + o.map(f).join(' ');
 });
+
+const HX = (cx, cy, r) => { const p = []; for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; p.push(f(cx + r * Math.cos(a)), f(cy + r * Math.sin(a))); } return P(...p); };
+const WV = (y, amp, n) => { const w = U / n; let s = `M0 ${y}Q${f(w / 4)} ${y - amp} ${f(w / 2)} ${y}`; for (let i = 2; i <= n * 2; i++) s += `T${f(i * w / 2)} ${y}`; return s + `L${U} ${U}L0 ${U}Z`; };
+const EB = (cx, cy, rx, ry, x1, x2) => {
+  const yy = x => ry * Math.sqrt(Math.max(0, 1 - ((x - cx) / rx) ** 2)), top = [], bot = [];
+  for (let i = 0; i <= 8; i++) { const x = x1 + (x2 - x1) * i / 8; top.push(f(x), f(cy - yy(x))); bot.unshift(f(x), f(cy + yy(x))); }
+  return P(...top, ...bot);
+};
+const TEN = (x, s) => { const X = d => f(x + s * d); return `M${X(-28)} 600C${X(-28)} 700 ${X(10)} 760 ${X(60)} 800C${X(95)} 825 ${X(110)} 790 ${X(85)} 772C${X(72)} 790 ${X(55)} 785 ${X(45)} 770C${X(20)} 730 ${X(28)} 690 ${X(28)} 600Z`; };
 
 /* ---------- the pictures ----------
    [n, path]       a shape to colour with paint pot n
@@ -555,7 +575,202 @@ const PICS = [
     ['i', C(282, 362, 7)], ['l', 'M290 402 Q310 412 332 400', 5],
     ['i', E(362, 320, 11, 15)], ['l', 'M354 305 L347 293', 5], ['l', 'M364 303 L364 290', 5], ['l', 'M374 306 L381 295', 5],
   ]},
+{ id: 'dragon', name: 'Baby Dragon', theme: 'dragons',
+  colors: ['#BDE6FF', '#8EDB8A', '#6FD08C', '#FFE36E', '#BC95F2', '#FFF0D2', '#FF94BE', '#FFC845', '#F0E9FF'],
+  shapes: [
+    [1, R(0, 0, 1000, 1000)],
+    [8, C(860, 140, 68)],
+    [9, CL(190, 170, 230, 80)], [9, CL(640, 115, 190, 60)],
+    [2, 'M0 800 Q250 740 500 790 T1000 780 L1000 1000 L0 1000Z'],
+    [3, 'M360 780 C220 800 150 730 180 650 C195 610 245 615 240 650 C232 690 265 730 340 725 Z'],
+    [5, P(168, 652, 205, 590, 238, 640)],
+    [5, 'M400 520 C300 400 210 390 170 440 C210 450 222 480 212 510 C252 505 272 530 272 560 C312 545 342 555 362 580 Z'],
+    [5, M('M400 520 C300 400 210 390 170 440 C210 450 222 480 212 510 C252 505 272 530 272 560 C312 545 342 555 362 580 Z')],
+    [3, E(500, 700, 165, 175)],
+    [4, E(500, 735, 98, 128)],
+    ['l', 'M420 680 Q500 700 580 680', 5], ['l', 'M410 740 Q500 762 590 740', 5], ['l', 'M420 800 Q500 818 580 800', 5],
+    [3, E(390, 872, 72, 40)], [3, E(610, 872, 72, 40)],
+    ['l', 'M362 880 L362 904', 4], ['l', 'M392 885 L392 910', 4], ['l', 'M608 885 L608 910', 4], ['l', 'M638 880 L638 904', 4],
+    [3, E(392, 640, 30, 58, 25)], [3, E(608, 640, 30, 58, -25)],
+    [5, P(458, 270, 482, 214, 506, 266)], [5, P(494, 266, 518, 210, 542, 270)],
+    [6, P(400, 300, 368, 192, 446, 272)], [6, P(600, 300, 632, 192, 554, 272)],
+    [3, E(500, 400, 178, 145)],
+    [6, E(500, 475, 96, 60)],
+    ['i', E(470, 465, 7, 10)], ['i', E(530, 465, 7, 10)],
+    ['l', 'M465 502 Q500 522 535 502', 5],
+    ['i', E(430, 380, 20, 28)], ['i', E(570, 380, 20, 28)],
+    [7, C(378, 445, 22)], [7, C(622, 445, 22)],
+  ]},
+{ id: 'dragon-egg', name: 'Hatching Dragon', theme: 'dragons',
+  colors: ['#CFC3FF', '#C98B5E', '#FFF0D2', '#79BDFF', '#FFA07A', '#FFD2A1', '#9DE6C7', '#FFE36E'],
+  shapes: [
+    [1, R(0, 0, 1000, 1000)],
+    [8, ST(140, 150, 52, 23)], [8, ST(690, 130, 46, 20)], [8, ST(840, 520, 40, 17)], [8, ST(160, 490, 40, 17)],
+    [8, 'M827.3 76A85 85 0 1 0 921.6 183.7A72 72 0 0 1 827.3 76Z'],
+    [7, E(330, 450, 82, 44, -30)], [7, E(670, 450, 82, 44, 30)],
+    [5, E(500, 470, 165, 135)],
+    [3, 'M410 362 L432 318 L462 345 L496 298 L528 345 L560 316 L588 362 C540 342 460 342 410 362 Z'],
+    [6, E(500, 522, 84, 50)],
+    ['i', E(476, 512, 6, 9)], ['i', E(524, 512, 6, 9)], ['l', 'M470 546 Q500 563 530 546', 5],
+    ['i', E(442, 452, 17, 24)], ['i', E(558, 452, 17, 24)],
+    [2, E(500, 862, 340, 95)],
+    [3, 'M300 640 L345 600 L390 650 L440 595 L490 650 L540 595 L590 650 L640 600 L700 640 C712 760 640 862 500 862 C360 862 288 760 300 640 Z'],
+    [4, C(400, 745, 30)], [4, C(568, 775, 26)], [4, C(492, 705, 22)], [4, C(622, 700, 20)],
+    [5, E(372, 614, 40, 28)], [5, E(628, 614, 40, 28)],
+    [2, 'M140 845 C250 885 750 885 860 845 C880 905 780 962 500 962 C220 962 120 905 140 845 Z'],
+    ['l', 'M220 900 L300 880', 5], ['l', 'M420 930 L500 905', 5], ['l', 'M640 925 L720 895', 5],
+  ]},
+{ id: 'lion', name: 'Little Lion', theme: 'zoo',
+  colors: ['#BDE6FF', '#8EDB8A', '#FFA552', '#FFD36E', '#FFF0D2', '#FF94BE', '#FFE36E'],
+  shapes: [
+    [1, R(0, 0, 1000, 1000)],
+    [7, C(130, 130, 62)],
+    [2, 'M0 850 Q500 800 1000 850 L1000 1000 L0 1000Z'],
+    [6, FL(110, 920, 42, 5)], [6, FL(890, 915, 42, 5)],
+    [3, FL(500, 500, 295, 12)],
+    [4, C(352, 340, 56)], [4, C(648, 340, 56)], [6, C(352, 340, 28)], [6, C(648, 340, 28)],
+    [4, E(500, 515, 190, 175)],
+    [5, E(500, 650, 46, 32)],
+    [5, E(452, 592, 62, 50)], [5, E(548, 592, 62, 50)],
+    ['i', 'M465 547 L535 547 Q520 582 500 586 Q480 582 465 547 Z'],
+    ['l', 'M500 586 L500 612', 5],
+    ['i', C(432, 592, 5)], ['i', C(452, 612, 5)], ['i', C(548, 612, 5)], ['i', C(568, 592, 5)],
+    ['i', E(430, 478, 16, 22)], ['i', E(570, 478, 16, 22)],
+    [6, C(362, 545, 24)], [6, C(638, 545, 24)],
+  ]},
+{ id: 'elephant', name: 'Splashy Elephant', theme: 'zoo',
+  colors: ['#BDE6FF', '#C8E89A', '#B9C0E0', '#FFB3CF', '#79BDFF', '#FFF0D2', '#FFC845', '#F0E9FF'],
+  shapes: [
+    [1, R(0, 0, 1000, 1000)],
+    [7, C(860, 150, 70)], [8, CL(600, 170, 220, 70)],
+    [2, 'M0 820 Q500 780 1000 820 L1000 1000 L0 1000Z'],
+    [3, R(470, 640, 70, 210, 30)], [3, R(680, 640, 70, 210, 30)],
+    ['l', 'M790 590 C825 620 832 660 815 692', 7],
+    [3, E(580, 600, 230, 160)],
+    [3, R(400, 660, 72, 200, 30)], [3, R(600, 660, 72, 200, 30)],
+    ['l', 'M410 836 Q436 846 462 836', 4], ['l', 'M610 836 Q636 846 662 836', 4],
+    [3, 'M240 470 C170 440 140 380 160 315 C165 300 195 300 200 318 C190 375 215 415 270 430 Z'],
+    [5, C(150, 250, 22)], [5, C(108, 205, 18)], [5, C(196, 212, 18)], [5, C(152, 168, 16)],
+    [3, C(330, 480, 135)],
+    [6, 'M280 560 C250 610 210 615 195 595 C225 598 250 582 262 552 Z'],
+    [3, E(420, 480, 86, 115)], [4, E(425, 486, 55, 82)],
+    ['i', E(298, 452, 12, 17)], ['l', 'M248 522 Q275 542 302 526', 5],
+  ]},
+{ id: 'giraffe', name: 'Tall Giraffe', theme: 'zoo',
+  colors: ['#BDE6FF', '#8EDB8A', '#FFD36E', '#E8A15C', '#A9714B', '#4DB86A', '#FFF0D2'],
+  shapes: [
+    [1, R(0, 0, 1000, 1000)],
+    [5, R(800, 500, 52, 360, 10)],
+    [6, CL(826, 470, 310, 190, 6)],
+    [2, 'M0 850 Q500 810 1000 850 L1000 1000 L0 1000Z'],
+    [3, R(470, 700, 40, 190, 18)], [3, R(640, 700, 40, 190, 18)],
+    [5, R(470, 860, 40, 34, 10)], [5, R(640, 860, 40, 34, 10)],
+    ['l', 'M705 690 C742 720 748 760 738 792', 6], ['i', E(738, 800, 12, 18)],
+    [3, 'M410 655 L330 300 L410 285 L502 640 Z'],
+    [3, E(560, 690, 165, 98)],
+    [3, R(418, 700, 44, 195, 18)], [3, R(600, 700, 44, 195, 18)],
+    [5, R(418, 862, 44, 36, 10)], [5, R(600, 862, 44, 36, 10)],
+    [4, C(520, 668, 30)], [4, C(615, 705, 28)], [4, C(672, 655, 22)], [4, C(560, 742, 22)],
+    [4, E(432, 560, 22, 30)], [4, E(408, 452, 18, 26)], [4, E(382, 355, 14, 20)],
+    ['l', 'M372 246 L362 196', 6], ['l', 'M410 240 L420 192', 6], ['i', C(362, 190, 12)], ['i', C(421, 187, 12)],
+    [3, E(332, 242, 32, 15, -30)], [3, E(455, 236, 32, 15, 30)],
+    [3, E(392, 276, 80, 56, -12)],
+    [7, E(318, 302, 52, 40)],
+    ['i', C(300, 292, 6)], ['i', E(394, 262, 10, 14)], ['l', 'M300 324 Q318 336 336 326', 5],
+  ]},
+{ id: 'panda', name: 'Bamboo Panda', theme: 'zoo',
+  colors: ['#CDF2E2', '#8EDB8A', '#F4F1FA', '#5B5470', '#84D98A', '#3FA45E', '#FF94BE'],
+  shapes: [
+    [1, R(0, 0, 1000, 1000)],
+    [5, R(118, 150, 48, 760, 18)], ['l', 'M118 330 H166', 5], ['l', 'M118 520 H166', 5], ['l', 'M118 710 H166', 5],
+    [6, E(208, 300, 64, 22, -30)], [6, E(212, 485, 64, 22, 25)], [6, E(78, 405, 52, 19, 30)],
+    [5, R(836, 250, 48, 660, 18)], ['l', 'M836 430 H884', 5], ['l', 'M836 620 H884', 5],
+    [6, E(780, 385, 62, 21, 30)], [6, E(928, 520, 56, 19, -30)],
+    [2, 'M0 880 Q500 840 1000 880 L1000 1000 L0 1000Z'],
+    [3, E(500, 720, 190, 165)],
+    [4, E(395, 860, 76, 55)], [4, E(605, 860, 76, 55)], [7, C(395, 864, 26)], [7, C(605, 864, 26)],
+    [4, E(345, 680, 48, 96, 25)], [4, E(655, 680, 48, 96, -25)],
+    [4, C(368, 302, 54)], [4, C(632, 302, 54)],
+    [3, E(500, 432, 168, 146)],
+    [4, E(440, 430, 40, 54, 25)], [4, E(560, 430, 40, 54, -25)],
+    [3, C(446, 420, 17)], [3, C(554, 420, 17)], ['i', C(449, 422, 8)], ['i', C(551, 422, 8)],
+    ['i', E(500, 486, 23, 14)], ['l', 'M500 498 L500 515', 5], ['l', 'M500 515 Q485 530 470 522', 5], ['l', 'M500 515 Q515 530 530 522', 5],
+    [7, C(402, 502, 20)], [7, C(598, 502, 20)],
+  ]},
+{ id: 'whale', name: 'Happy Whale', theme: 'ocean',
+  colors: ['#BDE6FF', '#4FA9E8', '#8FD9F2', '#7C9BEA', '#D5E3FF', '#E3F7FF', '#FFC845', '#FF94BE', '#F0E9FF'],
+  shapes: [
+    [1, R(0, 0, 1000, 1000)],
+    [7, C(850, 140, 72)], [9, CL(190, 160, 230, 72)],
+    ['l', 'M560 120 Q580 100 600 120 Q620 100 640 120', 6],
+    [3, R(0, 560, 1000, 440)],
+    [6, 'M332 400 C322 340 300 305 255 292 C298 280 322 300 336 332 C342 290 362 262 402 255 C372 282 356 322 348 400 Z'],
+    [4, 'M150 600 C150 430 330 360 520 380 C700 400 800 500 820 560 C860 520 900 470 950 470 C930 520 920 560 900 590 C930 620 950 660 940 700 C890 690 850 660 820 630 C760 720 600 760 430 750 C260 740 150 700 150 600 Z'],
+    [4, E(470, 690, 72, 30, 25)],
+    ['i', E(300, 555, 12, 16)], ['l', 'M222 606 Q262 636 312 618', 5],
+    [8, C(338, 604, 22)],
+    [2, WV(770, 32, 5)],
+    ['l', 'M60 870 Q100 850 140 870', 5], ['l', 'M420 900 Q460 880 500 900', 5], ['l', 'M780 880 Q820 860 860 880', 5],
+  ]},
+{ id: 'octopus', name: 'Cheeky Octopus', theme: 'ocean',
+  colors: ['#8FD9F2', '#FFD9A8', '#BC95F2', '#E6D8FF', '#5CC46F', '#E3F7FF', '#FFA552', '#FF94BE'],
+  shapes: [
+    [1, R(0, 0, 1000, 1000)],
+    [6, C(190, 210, 38)], [6, C(250, 120, 25)], [6, C(820, 260, 32)], [6, C(870, 160, 22)],
+    [5, 'M80 900 C40 790 140 730 92 620 C62 550 120 500 110 450 C160 510 122 570 152 630 C192 720 112 790 142 900 Z'],
+    [5, M('M80 900 C40 790 140 730 92 620 C62 550 120 500 110 450 C160 510 122 570 152 630 C192 720 112 790 142 900 Z')],
+    [2, 'M0 880 Q500 840 1000 880 L1000 1000 L0 1000Z'],
+    [7, ST(820, 925, 50, 23)],
+    [8, 'M130 965 C120 912 186 893 205 930 C224 893 290 912 280 965 Z'],
+    [3, TEN(330, -1)], [3, TEN(400, -1)], [3, TEN(468, -1)], [3, TEN(532, 1)], [3, TEN(600, 1)], [3, TEN(670, 1)],
+    ['l', C(318, 700, 8), 4], ['l', C(388, 720, 8), 4], ['l', C(612, 720, 8), 4], ['l', C(682, 700, 8), 4],
+    [3, 'M300 610 C270 420 380 280 500 280 C620 280 730 420 700 610 C640 642 360 642 300 610 Z'],
+    [4, C(420, 380, 32)], [4, C(590, 360, 24)], [4, C(648, 455, 20)],
+    ['i', E(445, 505, 18, 25)], ['i', E(555, 505, 18, 25)],
+    ['l', 'M470 560 Q500 580 530 560', 5],
+    [8, C(398, 556, 22)], [8, C(602, 556, 22)],
+  ]},
+{ id: 'turtle', name: 'Sea Turtle', theme: 'ocean',
+  colors: ['#8FD9F2', '#FFD9A8', '#4DB86A', '#A8E6CF', '#B5E38A', '#E3F7FF', '#FFE36E', '#FF7A9C'],
+  shapes: [
+    [1, R(0, 0, 1000, 1000)],
+    [6, C(860, 220, 34)], [6, C(900, 130, 22)], [6, C(120, 820, 26)],
+    [7, P(110, 250, 60, 215, 60, 285)], [7, E(170, 250, 62, 38)], ['i', C(200, 242, 8)],
+    [2, 'M0 880 Q500 845 1000 880 L1000 1000 L0 1000Z'],
+    [8, 'M700 900 L715 830 C690 800 690 760 712 755 C735 752 735 790 740 810 L752 760 C748 728 765 708 782 716 C798 726 790 760 782 790 L792 830 C810 800 838 795 845 812 C852 830 822 850 808 870 L815 900 Z'],
+    [5, E(352, 380, 62, 26, 35)], [5, E(352, 640, 62, 26, -35)],
+    [5, E(640, 352, 98, 36, -35)], [5, E(648, 668, 98, 36, 35)],
+    [5, P(272, 495, 212, 512, 272, 530)],
+    [5, C(788, 480, 72)],
+    [3, E(500, 510, 232, 166)],
+    [4, HX(500, 510, 70)], [4, HX(375, 455, 50)], [4, HX(625, 455, 50)], [4, HX(375, 568, 50)], [4, HX(625, 568, 50)],
+    [4, HX(500, 400, 38)], [4, HX(500, 622, 38)],
+    ['i', C(808, 465, 10)], ['l', 'M792 506 Q812 520 834 504', 5],
+  ]},
+{ id: 'fish', name: 'Fish Friends', theme: 'ocean',
+  colors: ['#8FD9F2', '#FFD9A8', '#FFA552', '#FFF6EA', '#FF7A9C', '#BC95F2', '#E3F7FF', '#5CC46F'],
+  shapes: [
+    [1, R(0, 0, 1000, 1000)],
+    [7, C(640, 210, 34)], [7, C(700, 130, 24)], [7, C(330, 720, 26)], [7, C(930, 300, 28)],
+    [8, M('M80 880 C40 770 140 710 92 600 C62 530 120 480 110 430 C160 490 122 550 152 610 C192 700 112 770 142 880 Z')],
+    [2, 'M0 870 Q500 830 1000 870 L1000 1000 L0 1000Z'],
+    [5, 'M120 900 L140 760 C100 720 90 660 120 650 C150 650 150 700 160 730 L170 650 C160 600 180 570 200 580 C220 590 210 640 200 680 L215 760 C240 700 280 690 290 710 C300 730 260 760 240 800 L250 900 Z'],
+    [6, CL(560, 905, 300, 140, 8)],
+    [3, P(278, 400, 192, 325, 192, 475)],
+    [3, 'M372 316 C410 262 480 262 505 316 Z'],
+    [3, E(420, 400, 150, 95)],
+    [4, EB(420, 400, 150, 95, 345, 382)], [4, EB(420, 400, 150, 95, 462, 500)],
+    ['i', C(510, 385, 12)], ['l', 'M528 425 Q545 430 556 418', 5],
+    [3, P(800, 620, 870, 568, 870, 672)],
+    [3, 'M610 556 C640 510 700 510 718 556 Z'],
+    [3, E(700, 620, 108, 70)],
+    [4, EB(700, 620, 108, 70, 640, 668)], [4, EB(700, 620, 108, 70, 728, 756)],
+    ['i', C(624, 606, 10)], ['l', 'M610 640 Q600 646 594 638', 5],
+  ]},
 ];
+
+const FREE = ['#FF7A9C', '#FFA552', '#FFE36E', '#84D98A', '#4CC9C0', '#79BDFF', '#BC95F2', '#FF94BE', '#C98B5E', '#F9D2B3', '#B9C0CC', '#5B5470'];
+const THEMES = [['magic', 'Princesses, unicorns and friends'], ['dragons', 'Dragons'], ['zoo', 'Zoo animals'], ['ocean', 'Ocean animals']];
 
 /* prepare paths */
 PICS.forEach(p => {
@@ -574,7 +789,14 @@ function analyse(pic) {
   const cv = document.createElement('canvas'); cv.width = cv.height = MS;
   const cx = cv.getContext('2d', { willReadFrequently: true });
   const sh = new Int16Array(N).fill(-1);
-  pic.items.forEach((it, i) => {
+  if (pic.free) {
+    const d = pic.linesCv.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, U, U).data;
+    for (let y = 0; y < MS; y++) for (let x = 0; x < MS; x++) {
+      let ink = false;
+      for (let dy = 0; dy < MK && !ink; dy++) for (let dx = 0; dx < MK; dx++) if (d[((y * MK + dy) * U + x * MK + dx) * 4 + 3] > 100) { ink = true; break; }
+      sh[y * MS + x] = ink ? -2 : 0;
+    }
+  } else pic.items.forEach((it, i) => {
     if (it.kind === 'line') return;
     cx.setTransform(1, 0, 0, 1, 0, 0); cx.clearRect(0, 0, MS, MS);
     cx.setTransform(MS / U, 0, 0, MS / U, 0, 0); cx.fillStyle = '#000'; cx.fill(it.path, it.rule || 'nonzero');
@@ -616,6 +838,19 @@ function analyse(pic) {
     c.size++; c.sx += x; c.sy += y;
     if (x < c.x0) c.x0 = x; if (x > c.x1) c.x1 = x; if (y < c.y0) c.y0 = y; if (y > c.y1) c.y1 = y;
   }
+  if (pic.free) {            /* let each shape reach under its lines so no white gaps show */
+    for (let pass = 0; pass < 3; pass++) {
+      const prev = lab.slice();
+      for (let p = 0; p < N; p++) {
+        if (prev[p] >= 0) continue;
+        const x = p % MS, y = (p / MS) | 0;
+        const k = x > 0 && prev[p - 1] >= 0 ? prev[p - 1] : x < MS - 1 && prev[p + 1] >= 0 ? prev[p + 1] : y > 0 && prev[p - MS] >= 0 ? prev[p - MS] : y < MS - 1 && prev[p + MS] >= 0 ? prev[p + MS] : -1;
+        if (k < 0) continue;
+        lab[p] = k; const c = comps[k];
+        if (x < c.x0) c.x0 = x; if (x > c.x1) c.x1 = x; if (y < c.y0) c.y0 = y; if (y > c.y1) c.y1 = y;
+      }
+    }
+  }
   const cell = new Int32Array(G * G), half = GR >> 1;
   for (let gy = 0; gy < G; gy++) for (let gx = 0; gx < G; gx++) {
     const k = lab[(gy * GR + half) * MS + gx * GR + half]; cell[gy * G + gx] = k; if (k >= 0) comps[k].cells++;
@@ -653,6 +888,7 @@ function drawLines(ctx, pic, px, v) {
   const z = v ? v.z : 1, s = px / U * z, thin = Math.pow(z, -.4);
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   ctx.setTransform(s, 0, 0, s, v ? v.tx : 0, v ? v.ty : 0);
+  if (pic.free) { if (pic.linesCv) { ctx.imageSmoothingEnabled = true; ctx.drawImage(pic.linesCv, 0, 0, U, U); } return; }
   ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.strokeStyle = INK; ctx.fillStyle = INK;
   pic.items.forEach((it, i) => {
     if (it.kind === 'line') { ctx.lineWidth = it.w * thin; ctx.stroke(it.path); return; }
@@ -710,15 +946,17 @@ function savePrefs() { try { localStorage.setItem(KEY + 'prefs', JSON.stringify(
 function hexRgb(h) { const n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
 function lum(h) { const [r, g, b] = hexRgb(h); return (0.299 * r + 0.587 * g + 0.114 * b) / 255; }
 
+function colourOf(k) { return st.free ? FREE[Math.max(0, st.rc[k])] : st.pic.colors[st.an.comps[k].n - 1]; }
 /* a crayon-textured stamp of one shape in its colour */
 function tint(k) {
   const an = st.an, c = an.comps[k];
   if (c.tint) return c.tint;
+  const col = colourOf(k);
   const x0 = Math.max(0, c.x0 - 1), y0 = Math.max(0, c.y0 - 1), x1 = Math.min(MS - 1, c.x1 + 1), y1 = Math.min(MS - 1, c.y1 + 1);
   const w = x1 - x0 + 1, h = y1 - y0 + 1;
   const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
   const cx = cv.getContext('2d'), img = cx.createImageData(w, h), d = img.data;
-  const [r, g, b] = hexRgb(st.pic.colors[c.n - 1]);
+  const [r, g, b] = hexRgb(col);
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
     if (an.lab[(y0 + y) * MS + x0 + x] !== k) continue;
     const o = (y * w + x) * 4, j = (Math.random() - .5) * 18;
@@ -770,6 +1008,7 @@ new ResizeObserver(() => { if (!$('studio').hidden) layout(); }).observe($('stag
 function drawNums() {
   const an = st.an; if (!an) return;
   nctx.setTransform(1, 0, 0, 1, 0, 0); nctx.clearRect(0, 0, nums.width, nums.height);
+  if (st.free) return;
   setView(nctx);
   const z = view.z;
   nctx.textAlign = 'center'; nctx.textBaseline = 'middle';
@@ -791,7 +1030,7 @@ function buildPalette() {
     b.style.setProperty('--c', col);
     b.style.setProperty('--t', lum(col) < .5 ? '#fff' : INK);
     b.setAttribute('aria-label', 'Colour ' + (i + 1));
-    b.innerHTML = `<span>${i + 1}</span>`;
+    b.innerHTML = `<span>${st.free ? '' : i + 1}</span>`;
     b.addEventListener('click', () => { audioInit(); sfx.tick(); select(i + 1); });
     pal.appendChild(b);
   });
@@ -800,9 +1039,9 @@ function buildPalette() {
 function left(n) { let c = 0; st.an.comps.forEach((x, k) => { if (x.n === n && !st.done[k]) c++; }); return c; }
 function updateSwatches() {
   document.querySelectorAll('.swatch').forEach(b => {
-    const n = +b.dataset.n, done = left(n) === 0;
+    const n = +b.dataset.n, done = !st.free && left(n) === 0;
     b.classList.toggle('done', done);
-    b.querySelector('span').textContent = done ? '✓' : n;
+    b.querySelector('span').textContent = st.free ? '' : done ? '✓' : n;
     b.setAttribute('aria-pressed', n === st.sel ? 'true' : 'false');
   });
   cursor.style.borderColor = st.pic.colors[st.sel - 1];
@@ -919,8 +1158,9 @@ function complete(k, quiet) {
   const c = st.an.comps[k], t = tint(k);
   pctx.drawImage(t.cv, t.x, t.y, t.w, t.h);
   if (quiet) return;
-  renderPaint(); drawNums(); burst(c.lx, c.ly, st.pic.colors[c.n - 1]); sfx.pop();
+  renderPaint(); drawNums(); burst(c.lx, c.ly, colourOf(k)); sfx.pop();
   updateSwatches(); save(true);
+  if (st.free) { if (st.an.comps.every((x, j) => st.done[j] || x.cells < 24)) setTimeout(celebrate, 650); return; }
   if (st.done.every(Boolean)) { setTimeout(celebrate, 650); return; }
   if (!left(c.n)) { sfx.chime(); setTimeout(() => select(firstLeft(c.n)), 450); }
 }
@@ -929,7 +1169,12 @@ function wrong(k) {
   fxAdd({ type: 'flash', ks: [k], pulses: 2, dur: 1100 });
   wiggle(n); sfx.boop();
 }
+function recolour(k) {
+  st.done[k] = 0; st.cov[k] = 0; st.rc[k] = st.sel - 1; st.an.comps[k].tint = null;
+  const cell = st.an.cell; for (let i = 0; i < G * G; i++) if (cell[i] === k) st.painted[i] = 0;
+}
 function showWhere() {
+  if (st.free) return;
   audioInit();
   if (!left(st.sel)) select(firstLeft(st.sel));
   const ks = []; st.an.comps.forEach((c, k) => { if (c.n === st.sel && !st.done[k]) ks.push(k); });
@@ -971,8 +1216,14 @@ stage.addEventListener('pointerdown', e => {
   e.preventDefault();
   audioInit();
   const p = pt(e), k = compAt(p.x, p.y);
-  if (k < 0 || st.done[k]) return;
-  if (st.an.comps[k].n !== st.sel) { wrong(k); return; }
+  if (k < 0) return;
+  if (st.free) {
+    if (st.done[k] && st.rc[k] === st.sel - 1) return;
+    if (st.rc[k] !== st.sel - 1) recolour(k);
+  } else {
+    if (st.done[k]) return;
+    if (st.an.comps[k].n !== st.sel) { wrong(k); return; }
+  }
   if (st.tool === 'wand') { complete(k); return; }
   try { stage.setPointerCapture(e.pointerId); } catch (_) {}
   const a = { x: p.x, y: p.y, r: radius(e) };
@@ -1031,7 +1282,7 @@ function save(now) {
   const go = () => {
     if (!st.pic) return;
     const done = []; st.done.forEach((v, k) => v && done.push(k));
-    try { localStorage.setItem(KEY + st.pic.id, JSON.stringify({ img: buf.toDataURL('image/jpeg', .85), done, total: st.done.length })); } catch (e) {}
+    try { localStorage.setItem(KEY + st.pic.id, JSON.stringify({ img: buf.toDataURL('image/jpeg', .85), done, total: st.done.length, rc: st.free ? Array.from(st.rc) : undefined })); } catch (e) {}
   };
   saveT = setTimeout(go, now ? 50 : 500);
 }
@@ -1039,7 +1290,8 @@ function loadSaved(id) { try { return JSON.parse(localStorage.getItem(KEY + id) 
 
 /* ---------- open a picture ---------- */
 async function openPicture(id) {
-  const pic = PICS.find(p => p.id === id); if (!pic) return;
+  const pic = PICS.find(p => p.id === id) || customPics().find(p => p.id === id); if (!pic) return;
+  if (pic.free) { try { await ensureLines(pic); } catch (e) { return; } }
   $('gallery').hidden = true; $('studio').hidden = false;
   $('ptitle').textContent = pic.name;
   $('loading').hidden = false;
@@ -1053,13 +1305,16 @@ async function openPicture(id) {
   st.done = new Uint8Array(an.comps.length);
   st.cov = new Int32Array(an.comps.length);
   st.painted = new Uint8Array(G * G);
+  st.free = !!pic.free; st.rc = new Int16Array(an.comps.length).fill(-1);
+  $('help').hidden = st.free;
   pctx.setTransform(1, 0, 0, 1, 0, 0); pctx.fillStyle = '#fff'; pctx.fillRect(0, 0, U, U);
   const saved = loadSaved(id);
   if (saved && saved.total === an.comps.length) {
     await new Promise(res => { const im = new Image(); im.onload = () => { pctx.drawImage(im, 0, 0, U, U); res(); }; im.onerror = res; im.src = saved.img; });
+    if (st.free && saved.rc) saved.rc.forEach((v, k) => { st.rc[k] = v; });
     saved.done.forEach(k => complete(k, true));
   }
-  an.comps.forEach((c, k) => { if (c.cells < 24) complete(k, true); });
+  if (!st.free) an.comps.forEach((c, k) => { if (c.cells < 24) complete(k, true); });
   try { await document.fonts.load('700 40px Andika'); } catch (e) {}
   st.sel = firstLeft(1);
   buildPalette();
@@ -1082,34 +1337,150 @@ function celebrate() {
 function restart() {
   try { localStorage.removeItem(KEY + st.pic.id); } catch (e) {}
   st.done.fill(0); st.cov.fill(0); st.painted.fill(0);
+  if (st.rc) st.rc.fill(-1); st.an.comps.forEach(c => { c.tint = null; });
   pctx.fillStyle = '#fff'; pctx.fillRect(0, 0, U, U);
   st.sel = 1; updateSwatches(); resetView(); renderAll();
 }
 
+/* ---------- your own pictures ---------- */
+const customCache = {};
+function customList() { try { return JSON.parse(localStorage.getItem(KEY + 'custom') || '[]'); } catch (e) { return []; } }
+function customPics() {
+  return customList().map(m => customCache[m.id] || (customCache[m.id] = { id: m.id, name: m.name, free: true, custom: true, colors: FREE, items: [{ kind: 'fill', n: 0 }] }));
+}
+function ensureLines(pic) {
+  if (pic.linesCv) return Promise.resolve(pic.linesCv);
+  return new Promise((res, rej) => {
+    let src = null; try { src = localStorage.getItem(KEY + 'cimg.' + pic.id); } catch (e) {}
+    if (!src) { rej(); return; }
+    const im = new Image();
+    im.onload = () => { const c = document.createElement('canvas'); c.width = c.height = U; c.getContext('2d').drawImage(im, 0, 0, U, U); pic.linesCv = c; res(c); };
+    im.onerror = rej; im.src = src;
+  });
+}
+function loadFileImage(file) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file), im = new Image();
+    im.onload = () => { res(im); setTimeout(() => URL.revokeObjectURL(url), 1000); };
+    im.onerror = () => { URL.revokeObjectURL(url); rej(new Error('image')); };
+    im.src = url;
+  });
+}
+/* turn a colouring page into clean dark lines on a transparent sheet */
+function makeLines(im) {
+  const c = document.createElement('canvas'); c.width = c.height = U;
+  const cx = c.getContext('2d', { willReadFrequently: true });
+  cx.fillStyle = '#fff'; cx.fillRect(0, 0, U, U);
+  const w = im.naturalWidth || im.width, h = im.naturalHeight || im.height, sc = Math.min((U - 40) / w, (U - 40) / h);
+  cx.imageSmoothingQuality = 'high';
+  cx.drawImage(im, (U - w * sc) / 2, (U - h * sc) / 2, w * sc, h * sc);
+  const img = cx.getImageData(0, 0, U, U), d = img.data, N = U * U, L = new Uint8Array(N), hist = new Float64Array(256);
+  for (let p = 0; p < N; p++) { const l = (d[p * 4] * .299 + d[p * 4 + 1] * .587 + d[p * 4 + 2] * .114) | 0; L[p] = l; hist[l]++; }
+  let sum = 0; for (let i = 0; i < 256; i++) sum += i * hist[i];
+  let sB = 0, wB = 0, best = 0, T = 128;
+  for (let t = 0; t < 256; t++) {
+    wB += hist[t]; if (!wB) continue; const wF = N - wB; if (!wF) break;
+    sB += t * hist[t]; const mB = sB / wB, mF = (sum - sB) / wF, v = wB * wF * (mB - mF) ** 2;
+    if (v > best) { best = v; T = t; }
+  }
+  T = Math.max(80, Math.min(200, T));
+  const [r, g, b] = hexRgb(INK); let dark = 0;
+  for (let p = 0; p < N; p++) {
+    const a = Math.max(0, Math.min(1, (T + 20 - L[p]) / 60));
+    if (a > .5) dark++;
+    d[p * 4] = r; d[p * 4 + 1] = g; d[p * 4 + 2] = b; d[p * 4 + 3] = a * 255;
+  }
+  cx.clearRect(0, 0, U, U); cx.putImageData(img, 0, 0);
+  return { cv: c, dark: dark / N };
+}
+async function importPicture(file) {
+  sheet('Finding the shapes…', 'This takes a moment.');
+  await new Promise(r => setTimeout(r, 60));
+  let im;
+  try { im = await loadFileImage(file); } catch (e) { sheet('That file didn\u2019t open', 'Try saving the picture as a photo or PNG and choose it again.', 'OK'); return; }
+  const { cv, dark } = makeLines(im);
+  const test = { free: true, items: [{ kind: 'fill', n: 0 }], linesCv: cv };
+  const an = analyse(test), shapes = an.comps.filter(c => c.cells >= 24).length;
+  if (dark > .45 || shapes < 3) {
+    sheet('No shapes found', 'This picture doesn\u2019t look like a colouring page. Choose a drawing with dark lines on a white background.', 'OK');
+    return;
+  }
+  const list = customList(), id = 'c' + Date.now().toString(36);
+  let n = 1; while (list.some(m => m.name === 'My picture ' + n)) n++;
+  try {
+    localStorage.setItem(KEY + 'cimg.' + id, cv.toDataURL('image/png'));
+    list.push({ id, name: 'My picture ' + n });
+    localStorage.setItem(KEY + 'custom', JSON.stringify(list));
+  } catch (e) {
+    try { localStorage.removeItem(KEY + 'cimg.' + id); } catch (_) {}
+    sheet('No room left', 'This iPad is out of space for saved pictures. Delete one of your own pictures and try again.', 'OK');
+    return;
+  }
+  test.an = null;
+  customCache[id] = { id, name: 'My picture ' + n, free: true, custom: true, colors: FREE, items: [{ kind: 'fill', n: 0 }], linesCv: cv };
+  $('confirm').hidden = true;
+  buildGallery();
+  setTimeout(() => { const el = document.querySelector(`[data-pic="${id}"]`); if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 120);
+}
+function deletePicture(pic) {
+  sheet('Delete this picture?', `${pic.name} and its colouring will be removed from this iPad.`, 'Yes, delete it', 'No, keep it', () => {
+    try {
+      localStorage.removeItem(KEY + 'cimg.' + pic.id); localStorage.removeItem(KEY + pic.id);
+      localStorage.setItem(KEY + 'custom', JSON.stringify(customList().filter(m => m.id !== pic.id)));
+    } catch (e) {}
+    delete customCache[pic.id]; buildGallery();
+  });
+}
+$('fileIn').addEventListener('change', () => { const f = $('fileIn').files[0]; $('fileIn').value = ''; if (f) importPicture(f); });
+
 /* ---------- gallery ---------- */
+const STAR = '<svg class="badge" viewBox="0 0 60 60" aria-label="Finished"><path d="M30 4l7.6 15.6 17.2 2.5-12.4 12.1 2.9 17.1L30 43.2l-15.3 8.1 2.9-17.1L5.2 22.1l17.2-2.5z" fill="#FFD95E" stroke="#3A2E4F" stroke-width="4" stroke-linejoin="round"/></svg>';
+function makeCard(pic, px) {
+  const b = document.createElement('button'); b.className = 'card'; b.dataset.pic = pic.id; b.setAttribute('aria-label', 'Colour ' + pic.name);
+  const cv = document.createElement('canvas'); cv.width = cv.height = px;
+  const name = document.createElement('div'); name.className = 'name'; name.textContent = pic.name;
+  b.append(cv, name);
+  const saved = loadSaved(pic.id), cx = cv.getContext('2d');
+  const ln = document.createElement('canvas'); ln.width = ln.height = px;
+  let paintImg = null;
+  const draw = () => { cx.fillStyle = '#fff'; cx.fillRect(0, 0, px, px); if (paintImg) cx.drawImage(paintImg, 0, 0, px, px); cx.drawImage(ln, 0, 0); };
+  if (pic.free) ensureLines(pic).then(() => { drawLines(ln.getContext('2d'), pic, px); draw(); }).catch(() => {});
+  else drawLines(ln.getContext('2d'), pic, px);
+  if (saved && saved.img) {
+    const im = new Image(); im.onload = () => { paintImg = im; draw(); }; im.src = saved.img;
+    const pct = saved.total ? saved.done.length / saved.total : 0;
+    if (pct >= 1) b.insertAdjacentHTML('beforeend', STAR);
+    else if (pct > 0 && !pic.free) { const tr = document.createElement('div'); tr.className = 'track'; tr.innerHTML = `<i style="width:${Math.round(pct * 100)}%"></i>`; b.append(tr); }
+  }
+  draw();
+  b.addEventListener('click', () => { audioInit(); sfx.tick(); openPicture(pic.id); });
+  return b;
+}
+function shelf(title) {
+  const sec = document.createElement('section'); sec.className = 'shelf';
+  const h = document.createElement('h2'); h.textContent = title;
+  const g = document.createElement('div'); g.className = 'grid';
+  sec.append(h, g); $('shelves').append(sec);
+  return g;
+}
 function buildGallery() {
-  const grid = $('grid'); grid.innerHTML = '';
+  $('shelves').innerHTML = '';
   const dpr = Math.min(window.devicePixelRatio || 1, 2), px = Math.round(240 * dpr);
-  PICS.forEach(pic => {
-    const b = document.createElement('button'); b.className = 'card'; b.setAttribute('aria-label', 'Colour ' + pic.name);
-    const cv = document.createElement('canvas'); cv.width = cv.height = px;
-    const name = document.createElement('div'); name.className = 'name'; name.textContent = pic.name;
-    b.append(cv, name);
-    const saved = loadSaved(pic.id);
-    const ln = document.createElement('canvas'); ln.width = ln.height = px; drawLines(ln.getContext('2d'), pic, px);
-    const cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, px, px);
-    if (saved && saved.img) {
-      const im = new Image(); im.onload = () => { cx.drawImage(im, 0, 0, px, px); cx.drawImage(ln, 0, 0); }; im.src = saved.img;
-      const pct = saved.total ? saved.done.length / saved.total : 0;
-      if (pct >= 1) {
-        b.insertAdjacentHTML('beforeend', '<svg class="badge" viewBox="0 0 60 60" aria-label="Finished"><path d="M30 4l7.6 15.6 17.2 2.5-12.4 12.1 2.9 17.1L30 43.2l-15.3 8.1 2.9-17.1L5.2 22.1l17.2-2.5z" fill="#FFD95E" stroke="#3A2E4F" stroke-width="4" stroke-linejoin="round"/></svg>');
-      } else if (pct > 0) {
-        const tr = document.createElement('div'); tr.className = 'track'; tr.innerHTML = `<i style="width:${Math.round(pct * 100)}%"></i>`; b.append(tr);
-      }
-    }
-    cx.drawImage(ln, 0, 0);
-    b.addEventListener('click', () => { audioInit(); sfx.tick(); openPicture(pic.id); });
-    grid.appendChild(b);
+  for (const [key, title] of THEMES) {
+    const g = shelf(title);
+    PICS.filter(p => (p.theme || 'magic') === key).forEach(p => g.append(makeCard(p, px)));
+  }
+  const g = shelf('Your pictures');
+  const add = document.createElement('button'); add.className = 'card add'; add.setAttribute('aria-label', 'Add a picture');
+  add.innerHTML = '<div class="plus"><svg viewBox="0 0 40 40" fill="none" stroke="#3A2E4F" stroke-width="5" stroke-linecap="round"><path d="M20 6v28M6 20h28"/></svg></div><div class="name">Add a picture</div>';
+  add.addEventListener('click', () => { audioInit(); sfx.tick(); $('fileIn').click(); });
+  g.append(add);
+  customPics().forEach(p => {
+    const box = document.createElement('div'); box.className = 'cardbox';
+    const del = document.createElement('button'); del.className = 'del'; del.setAttribute('aria-label', 'Delete ' + p.name);
+    del.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#3A2E4F" stroke-width="3.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+    del.addEventListener('click', () => deletePicture(p));
+    box.append(makeCard(p, px), del); g.append(box);
   });
 }
 
@@ -1124,9 +1495,16 @@ $('sizeBig').onclick = () => { sfx.tick(); setSize('big'); };
 $('sound').onclick = () => { audioInit(); setSound(!st.sound); sfx.tick(); };
 $('help').onclick = showWhere;
 $('back').onclick = backToGallery;
-$('restart').onclick = () => { $('confirm').hidden = false; };
+let sheetCb = null;
+function sheet(title, text, yes, no, onYes) {
+  $('confirmTitle').textContent = title; $('confirmText').textContent = text;
+  $('wipe').hidden = !yes; $('wipe').textContent = yes || '';
+  $('keep').hidden = !no; $('keep').textContent = no || '';
+  sheetCb = onYes || null; $('confirm').hidden = false;
+}
+$('restart').onclick = () => sheet('Start again?', 'This rubs out all the colours on this picture.', 'Yes, start again', 'No, keep it', restart);
 $('keep').onclick = () => { $('confirm').hidden = true; };
-$('wipe').onclick = () => { $('confirm').hidden = true; restart(); };
+$('wipe').onclick = () => { $('confirm').hidden = true; const cb = sheetCb; sheetCb = null; if (cb) cb(); };
 $('more').onclick = backToGallery;
 $('again').onclick = () => { $('celebrate').hidden = true; restart(); };
 setSize(st.size); setSound(st.sound); setTool('crayon');
@@ -1135,7 +1513,7 @@ document.addEventListener('visibilitychange', async () => {
 });
 
 /* ---------- pick up new versions (GitHub Pages copy) ---------- */
-const APP_VERSION = '2026-11-08.5';
+const APP_VERSION = '2026-11-08.6';
 let pendingVersion = null;
 function goNewVersion(v) { save(true); setTimeout(() => location.replace(location.pathname + '?v=' + encodeURIComponent(v)), 120); }
 async function checkVersion() {
@@ -1153,6 +1531,7 @@ checkVersion();
 
 buildGallery();
 document.fonts && document.fonts.ready.then(() => { if (!$('studio').hidden) drawNums(); });
+if (location.hash === '#debug') window.__sc = { PICS, openPicture, fillAll: () => { st.an.comps.forEach((c, k) => complete(k, true)); renderAll(); updateSwatches(); }, importPicture };
 
 })();
 </script>
