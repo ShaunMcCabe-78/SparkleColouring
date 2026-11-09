@@ -272,6 +272,72 @@ const EB = (cx, cy, rx, ry, x1, x2) => {
 };
 const TEN = (x, s) => { const X = d => f(x + s * d); return `M${X(-28)} 600C${X(-28)} 700 ${X(10)} 760 ${X(60)} 800C${X(95)} 825 ${X(110)} 790 ${X(85)} 772C${X(72)} 790 ${X(55)} 785 ${X(45)} 770C${X(20)} 730 ${X(28)} 690 ${X(28)} 600Z`; };
 
+/* place a drawing: (x, y) → (cx + (x − ox)·s·flip, cy + (y − oy)·s) */
+const TF = (d, o) => {
+  const sg = o.flip ? -1 : 1, X = x => o.cx + (x - o.ox) * o.s * sg, Y = y => o.cy + (y - o.oy) * o.s;
+  return d.replace(/([MLCQTAHVZ])([^MLCQTAHVZ]*)/g, (m, cmd, args) => {
+    const a = args.trim() ? args.trim().split(/[\s,]+/).map(Number) : [];
+    let out = [];
+    if (cmd === 'A') { for (let i = 0; i < a.length; i += 7) out.push(a[i] * o.s, a[i + 1] * o.s, a[i + 2] * sg, a[i + 3], o.flip ? 1 - a[i + 4] : a[i + 4], X(a[i + 5]), Y(a[i + 6])); }
+    else if (cmd === 'H') out = a.map(X);
+    else if (cmd === 'V') out = a.map(Y);
+    else if (cmd !== 'Z') out = a.map((v, i) => i % 2 ? Y(v) : X(v));
+    return cmd + out.map(f).join(' ');
+  });
+};
+const PLACE = (list, o) => list.map(e => e[0] === 'l' ? ['l', TF(e[1], o), Math.max(4, (e[2] || 5) * Math.sqrt(o.s))] : [e[0], TF(e[1], o)]);
+/* a princess in a ball gown, feet at (500, 970); c = paint pot for each part */
+const PRINCESS = (c, opt = {}) => {
+  const small = opt.small, out = [
+    [c.hair, 'M500 135 C640 135 705 235 705 345 C705 455 725 565 685 645 L315 645 C275 565 295 455 295 345 C295 235 360 135 500 135 Z'],
+    [c.skin, R(472, 430, 56, 60)],
+  ];
+  if (opt.skirt) out.push([c.dress, opt.skirt], [c.heart, H(540, 760, 34)]);
+  else if (opt.gown !== false) out.push(
+    [c.dress, 'M412 545 L588 545 C620 640 700 790 745 885 C600 925 400 925 255 885 C300 790 380 640 412 545 Z'],
+    [c.hem, 'M255 885 C400 925 600 925 745 885 L755 925 C600 970 400 970 245 925 Z'],
+    [c.heart, H(420, 780, 34)], [c.heart, H(580, 780, 34)], [c.heart, H(500, 690, 30)]);
+  if (opt.shoulders) out.push([c.dress, 'M330 600 C340 520 410 478 472 474 L528 474 C590 478 660 520 670 600 L690 1000 L310 1000 Z'], [c.heart, H(500, 620, 40)]);
+  if (opt.arms !== false) out.push(
+    [c.skin, 'M430 480 C392 520 372 580 380 640 L412 646 C410 595 425 548 452 520 Z'], [c.skin, C(396, 655, 27)],
+    [c.skin, 'M570 480 C622 498 655 540 664 592 L634 602 C626 562 600 532 552 518 Z'],
+    [c.wand, P(638, 602, 656, 610, 730, 470, 712, 462)], [c.wand, ST(722, 440, 60, 27)],
+    [c.skin, C(650, 612, 27)]);
+  if (!opt.shoulders) out.push([c.bodice, 'M425 470 L575 470 L592 560 L408 560 Z']);
+  out.push(
+    [c.skin, C(500, 330, 130)],
+    [c.hair, 'M372 330 C368 215 440 182 500 182 C580 182 640 225 630 330 C600 278 560 255 522 258 C505 292 455 302 425 284 C405 302 388 318 372 330 Z'],
+    [c.crown, 'M422 208 L410 122 L456 168 L500 100 L544 168 L590 122 L578 208 Z']);
+  if (!small) out.push([c.gem, C(500, 178, 20)]);
+  out.push(['i', E(452, 350, 14, 19)], ['i', E(548, 350, 14, 19)],
+    ['l', 'M440 334 L432 324', 5], ['l', 'M560 334 L568 324', 5], ['l', 'M470 398 Q500 422 530 398', 6]);
+  if (!small) out.push([c.cheek, C(416, 392, 22)], [c.cheek, C(584, 392, 22)]);
+  return out;
+};
+/* a unicorn standing side-on facing left, hooves at (580, 860) */
+const UNICORN = c => {
+  const out = [
+    [c.tail, 'M740 560 C830 520 885 600 850 680 C905 705 885 795 815 805 C850 745 805 695 755 650 Z'],
+    [c.body, R(495, 640, 55, 215, 26)], [c.hoof, R(495, 815, 55, 45, 14)],
+    [c.body, R(615, 640, 55, 215, 26)], [c.hoof, R(615, 815, 55, 45, 14)],
+    [c.body, 'M405 580 C385 480 385 410 405 345 L505 335 C495 425 505 485 545 525 Z'],
+    [c.body, R(400, 620, 60, 235, 28)], [c.hoof, R(400, 815, 60, 45, 14)],
+    [c.body, R(695, 620, 60, 235, 28)], [c.hoof, R(695, 815, 60, 45, 14)],
+    [c.body, E(570, 595, 190, 112)],
+    [c.mane, 'M440 262 C510 228 572 268 562 330 C612 350 612 420 582 455 C627 475 627 530 592 562 L545 525 C505 485 495 425 505 335 C484 300 462 282 440 262 Z'],
+    ['l', 'M522 300 C542 330 547 370 532 400', 5], ['l', 'M552 422 C567 452 567 482 562 505', 5],
+    [c.body, P(415, 275, 446, 182, 482, 282)],
+    [c.horn, P(345, 282, 318, 135, 396, 270)], ['l', 'M331 197 L357 206', 5], ['l', 'M338 237 L379 249', 5],
+    [c.body, E(390, 330, 100, 72)],
+    [c.body, E(305, 374, 62, 48)],
+    ['i', C(282, 362, 7)], ['l', 'M290 402 Q310 412 332 400', 5],
+    ['i', E(362, 320, 11, 15)], ['l', 'M354 305 L347 293', 5], ['l', 'M364 303 L364 290', 5], ['l', 'M374 306 L381 295', 5],
+  ];
+  if (c.cheek) out.push([c.cheek, C(398, 362, 20)]);
+  return out;
+};
+const MOON = 'M827.3 76A85 85 0 1 0 921.6 183.7A72 72 0 0 1 827.3 76Z';
+
 /* ---------- the pictures ----------
    [n, path]       a shape to colour with paint pot n
    ['i', path]     ink (filled dark, not coloured)
@@ -574,6 +640,85 @@ const PICS = [
     [6, E(305, 374, 62, 48)],
     ['i', C(282, 362, 7)], ['l', 'M290 402 Q310 412 332 400', 5],
     ['i', E(362, 320, 11, 15)], ['l', 'M354 305 L347 293', 5], ['l', 'M364 303 L364 290', 5], ['l', 'M374 306 L381 295', 5],
+  ]},
+{ id: 'best-friends', name: 'Best Friends',
+  colors: ['#BDE6FF', '#8EDB8A', '#FFE36E', '#F0E9FF', '#FFE6F0', '#FF94BE', '#FFC845', '#F9D2B3', '#C98B5E', '#BC95F2'],
+  shapes: [
+    [1, R(0, 0, 1000, 1000)],
+    [3, C(860, 140, 70)], [4, CL(180, 170, 230, 75)], [4, CL(560, 110, 180, 60)],
+    [2, 'M0 820 Q500 770 1000 820 L1000 1000 L0 1000Z'],
+    [6, FL(70, 930, 40, 5)], [3, C(70, 930, 15)], [10, FL(935, 945, 38, 5)], [3, C(935, 945, 14)],
+    ...PLACE(UNICORN({ body: 5, mane: 6, tail: 6, hoof: 7, horn: 7, cheek: 6 }), { ox: 580, oy: 860, s: .72, cx: 690, cy: 905 }),
+    ...PLACE(PRINCESS({ hair: 9, skin: 8, dress: 10, hem: 6, heart: 6, bodice: 6, crown: 7, gem: 6, cheek: 6, wand: 7 }, { small: true }), { ox: 500, oy: 925, s: .6, cx: 240, cy: 925 }),
+  ]},
+{ id: 'royal-ride', name: 'Royal Ride',
+  colors: ['#FFE0EC', '#9DE6C7', '#FFE36E', '#EEE6FF', '#F4F1FA', '#79BDFF', '#FFC845', '#F9D2B3', '#E8A15C', '#FF84B3'],
+  shapes: [
+    [1, R(0, 0, 1000, 1000)],
+    [3, ST(120, 140, 50, 22)], [3, ST(880, 120, 44, 19)], [3, ST(900, 380, 34, 15)],
+    [4, CL(250, 170, 240, 78)], [4, CL(690, 230, 200, 64)],
+    [2, 'M0 830 Q500 785 1000 830 L1000 1000 L0 1000Z'],
+    [10, FL(110, 925, 40, 5)], [3, C(110, 925, 15)], [6, FL(900, 935, 40, 5)], [3, C(900, 935, 15)],
+    ...PLACE(UNICORN({ body: 5, mane: 6, tail: 6, hoof: 7, horn: 7, cheek: 10 }), { ox: 580, oy: 860, s: .9, cx: 560, cy: 905 }),
+    ...PLACE(PRINCESS({ hair: 9, skin: 8, dress: 10, heart: 6, bodice: 6, crown: 7, gem: 6, cheek: 10, wand: 7 },
+      { skirt: 'M408 548 C360 640 330 760 360 840 C460 880 640 880 720 830 C730 760 660 640 592 548 Z', small: true }),
+      { ox: 500, oy: 560, s: .6, cx: 650, cy: 585 }),
+  ]},
+{ id: 'castle-garden', name: 'Castle Garden',
+  colors: ['#A6DCFF', '#FFC9DE', '#A97CE8', '#FFE36E', '#C98B5E', '#FF5C8A', '#9BE29A', '#F9D2B3', '#4CC9C0', '#FFF6EA'],
+  shapes: [
+    [1, R(0, 0, 1000, 1000)],
+    [4, C(880, 120, 60)], [10, CL(160, 140, 220, 70)],
+    [7, 'M0 610 Q250 540 500 595 T1000 580 L1000 1000 L0 1000Z'],
+    ...PLACE([
+      ['l', 'M280 230 L280 150', 6], [6, P(280, 150, 338, 168, 280, 186)],
+      ['l', 'M720 230 L720 150', 6], [6, P(720, 150, 778, 168, 720, 186)],
+      ['l', 'M500 170 L500 85', 6], [6, P(500, 85, 560, 104, 500, 122)],
+      [2, R(420, 320, 160, 220)], [3, P(398, 330, 500, 160, 602, 330)], [4, C(500, 418, 32)],
+      [2, BT(300, 700, 470, 830, 40, 32)],
+      [4, AR(345, 570, 56, 70)], [4, AR(599, 570, 56, 70)],
+      [5, AR(445, 700, 110, 130)], ['l', 'M500 720 L500 830', 5],
+      [2, R(220, 380, 120, 450)], [3, P(202, 390, 280, 222, 358, 390)], [4, AR(258, 520, 44, 66)],
+      [2, R(660, 380, 120, 450)], [3, P(642, 390, 720, 222, 798, 390)], [4, AR(698, 520, 44, 66)],
+    ], { ox: 500, oy: 830, s: .52, cx: 500, cy: 590 }),
+    [5, 'M470 592 L530 592 L640 1000 L360 1000 Z'],
+    [6, FL(70, 700, 36, 5)], [4, C(70, 700, 13)], [6, FL(940, 690, 36, 5)], [4, C(940, 690, 13)],
+    ...PLACE(PRINCESS({ hair: 4, skin: 8, dress: 9, hem: 6, heart: 6, bodice: 6, crown: 4, gem: 6, cheek: 6, wand: 4 }, { small: true }), { ox: 500, oy: 925, s: .5, cx: 200, cy: 960 }),
+    ...PLACE(UNICORN({ body: 10, mane: 3, tail: 3, hoof: 4, horn: 4 }), { ox: 580, oy: 860, s: .6, cx: 770, cy: 955 }),
+  ]},
+{ id: 'starry-night', name: 'Starry Night',
+  colors: ['#9DB2F0', '#FFE36E', '#7FD1A8', '#F0E9FF', '#FF94BE', '#FFC845', '#F9D2B3', '#8A5A3C', '#BC95F2', '#FF7A9C'],
+  shapes: [
+    [1, R(0, 0, 1000, 1000)],
+    [2, MOON],
+    [2, ST(120, 120, 44, 19)], [2, ST(330, 90, 30, 13)], [2, ST(560, 170, 36, 16)], [2, ST(150, 380, 30, 13)], [2, ST(700, 330, 28, 12)],
+    [3, 'M0 760 Q300 690 600 745 T1000 725 L1000 1000 L0 1000Z'],
+    [2, ST(560, 560, 26, 11)], [2, ST(600, 480, 18, 8)],
+    ...PLACE(UNICORN({ body: 4, mane: 5, tail: 5, hoof: 6, horn: 6, cheek: 10 }), { ox: 580, oy: 860, s: .66, cx: 330, cy: 935, flip: true }),
+    ...PLACE(PRINCESS({ hair: 8, skin: 7, dress: 9, hem: 5, heart: 10, bodice: 5, crown: 6, gem: 10, cheek: 10, wand: 6 }, { small: true }), { ox: 500, oy: 925, s: .58, cx: 765, cy: 950, flip: true }),
+  ]},
+{ id: 'flower-crown', name: 'Flower Crown',
+  colors: ['#D7F5EA', '#FDEEF6', '#FF94BE', '#BC95F2', '#8FC8FF', '#FFE36E', '#FFB938', '#F9D2B3', '#8A5A3C', '#4CC9C0'],
+  shapes: [
+    [1, R(0, 0, 1000, 1000)],
+    [3, H(120, 110, 48)], [4, H(900, 120, 42)], [6, ST(520, 90, 40, 17)],
+    ...PLACE(PRINCESS({ hair: 9, skin: 8, dress: 10, heart: 3, crown: 7, gem: 3, cheek: 3 }, { gown: false, arms: false, shoulders: true }), { ox: 500, oy: 330, s: .85, cx: 770, cy: 470 }),
+    ...PLACE([
+      [3, 'M600 270 C700 200 820 260 822 360 C760 340 700 330 650 340 Z'],
+      [4, 'M700 330 C822 330 888 430 852 520 C800 470 750 455 720 455 Z'],
+      [5, 'M735 450 C865 470 905 592 852 682 C812 620 772 595 742 595 Z'],
+      [6, 'M745 590 C875 640 888 785 822 875 C792 795 772 765 752 755 Z'],
+      [3, 'M758 750 C870 800 862 930 800 995 C792 930 782 900 762 890 Z'],
+      [2, P(560, 302, 600, 168, 652, 302)], [3, P(578, 294, 600, 210, 630, 294)],
+      [7, P(450, 332, 470, 128, 524, 314)], ['l', 'M459 260 L507 248', 5], ['l', 'M465 205 L492 198', 5],
+      [2, 'M470 1000 C480 820 430 720 360 640 C300 580 250 560 240 500 C230 430 290 400 360 400 C420 300 520 260 600 280 C720 310 780 420 770 560 C760 700 760 850 780 1000 Z'],
+      [3, FL(452, 352, 34, 6)], [6, C(452, 352, 12)],
+      [4, FL(530, 320, 34, 6)], [6, C(530, 320, 12)],
+      [3, FL(608, 300, 34, 6)], [6, C(608, 300, 12)],
+      ['l', 'M418 446 Q450 476 486 446', 6], ['l', 'M428 456 L414 474', 5], ['l', 'M450 466 L446 486', 5], ['l', 'M474 458 L486 476', 5],
+      [3, E(418, 545, 34, 24)],
+      ['i', C(282, 500, 10)], ['l', 'M268 565 Q300 585 334 566', 6],
+    ], { ox: 500, oy: 1000, s: .8, cx: 360, cy: 1000, flip: true }),
   ]},
 { id: 'dragon', name: 'Baby Dragon', theme: 'dragons',
   colors: ['#BDE6FF', '#8EDB8A', '#6FD08C', '#FFE36E', '#BC95F2', '#FFF0D2', '#FF94BE', '#FFC845', '#F0E9FF'],
@@ -1275,18 +1420,78 @@ for (const id of ['zoomIn', 'zoomOut']) {
   });
 }
 
-/* ---------- saving ---------- */
-let saveT = 0;
+/* ---------- saving ----------
+   Small notes (which shapes are done) live in localStorage.
+   The pictures themselves live in IndexedDB, which has far more room. */
+const DB = (() => {
+  let p = null;
+  const open = () => p || (p = new Promise((res, rej) => {
+    try {
+      const r = indexedDB.open('sparkle-colouring', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('files');
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    } catch (e) { rej(e); }
+  }));
+  const run = (mode, fn) => open().then(db => new Promise((res, rej) => {
+    const t = db.transaction('files', mode), q = fn(t.objectStore('files'));
+    t.oncomplete = () => res(q && q.result); t.onerror = () => rej(t.error); t.onabort = () => rej(t.error);
+  }));
+  return { get: k => run('readonly', s => s.get(k)), set: (k, v) => run('readwrite', s => s.put(v, k)), del: k => run('readwrite', s => s.delete(k)) };
+})();
+try { navigator.storage && navigator.storage.persist && navigator.storage.persist().catch(() => {}); } catch (e) {}
+let saveT = 0, saveWaiters = [], saveChain = Promise.resolve();
 function save(now) {
   clearTimeout(saveT);
-  const go = () => {
-    if (!st.pic) return;
-    const done = []; st.done.forEach((v, k) => v && done.push(k));
-    try { localStorage.setItem(KEY + st.pic.id, JSON.stringify({ img: buf.toDataURL('image/jpeg', .85), done, total: st.done.length, rc: st.free ? Array.from(st.rc) : undefined })); } catch (e) {}
-  };
-  saveT = setTimeout(go, now ? 50 : 500);
+  return new Promise(res => {
+    saveWaiters.push(res);
+    saveT = setTimeout(() => {
+      const w = saveWaiters; saveWaiters = [];
+      saveChain = saveChain.then(writeSave).catch(() => {}).then(() => w.forEach(r => r()));
+    }, now ? 30 : 500);
+  });
+}
+async function writeSave() {
+  if (!st.pic || !st.done) return;
+  const id = st.pic.id, done = []; st.done.forEach((v, k) => v && done.push(k));
+  const meta = { done, total: st.done.length, rc: st.free ? Array.from(st.rc) : undefined };
+  const blob = await new Promise(r => { try { buf.toBlob(r, 'image/jpeg', .85); } catch (e) { r(null); } });
+  try { if (!blob) throw 0; await DB.set('paint.' + id, blob); }
+  catch (e) { try { await DB.set('paint.' + id, buf.toDataURL('image/jpeg', .85)); } catch (e2) { meta.img = buf.toDataURL('image/jpeg', .85); } }
+  try { localStorage.setItem(KEY + id, JSON.stringify(meta)); }
+  catch (e) { delete meta.img; try { localStorage.setItem(KEY + id, JSON.stringify(meta)); } catch (e2) {} }
 }
 function loadSaved(id) { try { return JSON.parse(localStorage.getItem(KEY + id) || 'null'); } catch (e) { return null; } }
+async function paintSrc(id, meta) {
+  if (meta && meta.img) return meta.img;
+  try { const v = await DB.get('paint.' + id); if (v) return typeof v === 'string' ? v : URL.createObjectURL(v); } catch (e) {}
+  return null;
+}
+function loadImg(src) {
+  return new Promise(res => {
+    if (!src) { res(null); return; }
+    const im = new Image();
+    im.onload = () => { res(im); if (src.startsWith('blob:')) URL.revokeObjectURL(src); };
+    im.onerror = () => res(null); im.src = src;
+  });
+}
+/* move pictures saved by earlier versions out of the small storage */
+async function migrate() {
+  let keys = [];
+  try { keys = Object.keys(localStorage).filter(k => k.startsWith(KEY)); } catch (e) { return; }
+  for (const k of keys) {
+    const rest = k.slice(KEY.length);
+    try {
+      if (rest.startsWith('cimg.')) {
+        const v = localStorage.getItem(k);
+        await DB.set(rest, v); localStorage.removeItem(k);
+      } else if (rest !== 'prefs' && rest !== 'custom') {
+        const meta = JSON.parse(localStorage.getItem(k) || 'null');
+        if (meta && meta.img) { await DB.set('paint.' + rest, meta.img); delete meta.img; localStorage.setItem(k, JSON.stringify(meta)); }
+      }
+    } catch (e) {}
+  }
+}
 
 /* ---------- open a picture ---------- */
 async function openPicture(id) {
@@ -1310,7 +1515,8 @@ async function openPicture(id) {
   pctx.setTransform(1, 0, 0, 1, 0, 0); pctx.fillStyle = '#fff'; pctx.fillRect(0, 0, U, U);
   const saved = loadSaved(id);
   if (saved && saved.total === an.comps.length) {
-    await new Promise(res => { const im = new Image(); im.onload = () => { pctx.drawImage(im, 0, 0, U, U); res(); }; im.onerror = res; im.src = saved.img; });
+    const im = await loadImg(await paintSrc(id, saved));
+    if (im) pctx.drawImage(im, 0, 0, U, U);
     if (st.free && saved.rc) saved.rc.forEach((v, k) => { st.rc[k] = v; });
     saved.done.forEach(k => complete(k, true));
   }
@@ -1322,12 +1528,14 @@ async function openPicture(id) {
   $('loading').hidden = true;
   try { if (navigator.wakeLock) st.lock = await navigator.wakeLock.request('screen'); } catch (e) {}
 }
-function backToGallery() {
-  save(true);
+async function backToGallery() {
+  const saving = save(true);
   try { st.lock && st.lock.release(); } catch (e) {}
   $('studio').hidden = true; $('gallery').hidden = false; $('celebrate').hidden = true;
+  await saving;
+  st.pic = null;
   if (pendingVersion) { goNewVersion(pendingVersion); return; }
-  setTimeout(buildGallery, 80);
+  buildGallery();
 }
 function celebrate() {
   sfx.fanfare(); confetti();
@@ -1336,6 +1544,7 @@ function celebrate() {
 }
 function restart() {
   try { localStorage.removeItem(KEY + st.pic.id); } catch (e) {}
+  DB.del('paint.' + st.pic.id).catch(() => {});
   st.done.fill(0); st.cov.fill(0); st.painted.fill(0);
   if (st.rc) st.rc.fill(-1); st.an.comps.forEach(c => { c.tint = null; });
   pctx.fillStyle = '#fff'; pctx.fillRect(0, 0, U, U);
@@ -1348,15 +1557,16 @@ function customList() { try { return JSON.parse(localStorage.getItem(KEY + 'cust
 function customPics() {
   return customList().map(m => customCache[m.id] || (customCache[m.id] = { id: m.id, name: m.name, free: true, custom: true, colors: FREE, items: [{ kind: 'fill', n: 0 }] }));
 }
-function ensureLines(pic) {
-  if (pic.linesCv) return Promise.resolve(pic.linesCv);
-  return new Promise((res, rej) => {
-    let src = null; try { src = localStorage.getItem(KEY + 'cimg.' + pic.id); } catch (e) {}
-    if (!src) { rej(); return; }
-    const im = new Image();
-    im.onload = () => { const c = document.createElement('canvas'); c.width = c.height = U; c.getContext('2d').drawImage(im, 0, 0, U, U); pic.linesCv = c; res(c); };
-    im.onerror = rej; im.src = src;
-  });
+async function ensureLines(pic) {
+  if (pic.linesCv) return pic.linesCv;
+  let v = null;
+  try { v = await DB.get('cimg.' + pic.id); } catch (e) {}
+  if (!v) { try { v = localStorage.getItem(KEY + 'cimg.' + pic.id); } catch (e) {} }
+  if (!v) throw new Error('missing');
+  const im = await loadImg(typeof v === 'string' ? v : URL.createObjectURL(v));
+  if (!im) throw new Error('bad');
+  const c = document.createElement('canvas'); c.width = c.height = U; c.getContext('2d').drawImage(im, 0, 0, U, U);
+  pic.linesCv = c; return c;
 }
 function loadFileImage(file) {
   return new Promise((res, rej) => {
@@ -1408,11 +1618,12 @@ async function importPicture(file) {
   const list = customList(), id = 'c' + Date.now().toString(36);
   let n = 1; while (list.some(m => m.name === 'My picture ' + n)) n++;
   try {
-    localStorage.setItem(KEY + 'cimg.' + id, cv.toDataURL('image/png'));
+    const blob = await new Promise(r => { try { cv.toBlob(r, 'image/png'); } catch (e) { r(null); } });
+    await DB.set('cimg.' + id, blob || cv.toDataURL('image/png'));
     list.push({ id, name: 'My picture ' + n });
     localStorage.setItem(KEY + 'custom', JSON.stringify(list));
   } catch (e) {
-    try { localStorage.removeItem(KEY + 'cimg.' + id); } catch (_) {}
+    DB.del('cimg.' + id).catch(() => {});
     sheet('No room left', 'This iPad is out of space for saved pictures. Delete one of your own pictures and try again.', 'OK');
     return;
   }
@@ -1424,6 +1635,7 @@ async function importPicture(file) {
 }
 function deletePicture(pic) {
   sheet('Delete this picture?', `${pic.name} and its colouring will be removed from this iPad.`, 'Yes, delete it', 'No, keep it', () => {
+    DB.del('cimg.' + pic.id).catch(() => {}); DB.del('paint.' + pic.id).catch(() => {});
     try {
       localStorage.removeItem(KEY + 'cimg.' + pic.id); localStorage.removeItem(KEY + pic.id);
       localStorage.setItem(KEY + 'custom', JSON.stringify(customList().filter(m => m.id !== pic.id)));
@@ -1446,8 +1658,8 @@ function makeCard(pic, px) {
   const draw = () => { cx.fillStyle = '#fff'; cx.fillRect(0, 0, px, px); if (paintImg) cx.drawImage(paintImg, 0, 0, px, px); cx.drawImage(ln, 0, 0); };
   if (pic.free) ensureLines(pic).then(() => { drawLines(ln.getContext('2d'), pic, px); draw(); }).catch(() => {});
   else drawLines(ln.getContext('2d'), pic, px);
-  if (saved && saved.img) {
-    const im = new Image(); im.onload = () => { paintImg = im; draw(); }; im.src = saved.img;
+  if (saved) {
+    paintSrc(pic.id, saved).then(loadImg).then(im => { if (im) { paintImg = im; draw(); } });
     const pct = saved.total ? saved.done.length / saved.total : 0;
     if (pct >= 1) b.insertAdjacentHTML('beforeend', STAR);
     else if (pct > 0 && !pic.free) { const tr = document.createElement('div'); tr.className = 'track'; tr.innerHTML = `<i style="width:${Math.round(pct * 100)}%"></i>`; b.append(tr); }
@@ -1513,9 +1725,9 @@ document.addEventListener('visibilitychange', async () => {
 });
 
 /* ---------- pick up new versions (GitHub Pages copy) ---------- */
-const APP_VERSION = '2026-11-08.6';
+const APP_VERSION = '2026-11-09.1';
 let pendingVersion = null;
-function goNewVersion(v) { save(true); setTimeout(() => location.replace(location.pathname + '?v=' + encodeURIComponent(v)), 120); }
+async function goNewVersion(v) { if (st.pic) await save(true); location.replace(location.pathname + '?v=' + encodeURIComponent(v)); }
 async function checkVersion() {
   if (!/^https?:/.test(location.protocol) || !/github\.io$/.test(location.hostname)) return;
   try {
@@ -1530,6 +1742,9 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 checkVersion();
 
 buildGallery();
+migrate().then(() => { if ($('studio').hidden) buildGallery(); });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && st.pic) save(true); });
+window.addEventListener('pagehide', () => { if (st.pic) save(true); });
 document.fonts && document.fonts.ready.then(() => { if (!$('studio').hidden) drawNums(); });
 if (location.hash === '#debug') window.__sc = { PICS, openPicture, fillAll: () => { st.an.comps.forEach((c, k) => complete(k, true)); renderAll(); updateSwatches(); }, importPicture };
 
